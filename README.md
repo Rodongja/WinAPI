@@ -16,15 +16,17 @@
 - 객체 생성/삭제 시 이벤트(CEventMgr) 발생
 
 예제:
-CreateObject(pObj, GROUP_TYPE::PLAYER);
-DeleteObject(pObj);
+
+    CreateObject(pObj, GROUP_TYPE::PLAYER);
+    DeleteObject(pObj);
 
 ### 1.1 오브젝트 배치 예제:
-CObject* pGround = new CGround;
-pGround->SetName(L"Ground");
-pGround->SetPos(Vec2(640.f, 584.f));
-pGround->SetScale(Vec2(1000.f, 60.f));
-AddObject(pGround, GROUP_TYPE::GROUND);
+
+    CObject* pGround = new CGround;
+    pGround->SetName(L"Ground");
+    pGround->SetPos(Vec2(640.f, 584.f));
+    pGround->SetScale(Vec2(1000.f, 60.f));
+    AddObject(pGround, GROUP_TYPE::GROUND);
 
 
 ---
@@ -36,13 +38,15 @@ AddObject(pGround, GROUP_TYPE::GROUND);
 - 상태 전환 시 이벤트 발생 및 Enter/Exit 함수 호출
 
 예제:
-AI* pAI = new AI();
-pAI->AddState(new CIdleState());
-pAI->AddState(new CTraceState());
-pAI->SetCurState(MON_STATE::IDLE);
+
+    AI* pAI = new AI();
+    pAI->AddState(new CIdleState());
+    pAI->AddState(new CTraceState());
+    pAI->SetCurState(MON_STATE::IDLE);
 
 // 상태 변경
-pAI->ChangeState(MON_STATE::TRACE);
+
+    pAI->ChangeState(MON_STATE::TRACE);
 
 ---
 
@@ -60,10 +64,11 @@ pAI->ChangeState(MON_STATE::TRACE);
 - m_fFricCoeff : 마찰 계수
 
 #### 3.2 이동 계산
-m_vAccel = m_vForce / m_fMass + m_vAccelA; // 가속도 계산  
-m_vVelocity += m_vAccel * fDT;             // 속도 갱신  
-LimitVelocity();                            // 최대 속도 제한  
-Move();                                     // 위치 변경
+
+    m_vAccel = m_vForce / m_fMass + m_vAccelA; // 가속도 계산  
+    m_vVelocity += m_vAccel * fDT;             // 속도 갱신  
+    LimitVelocity();                            // 최대 속도 제한  
+    Move();                                     // 위치 변경
 
 #### 3.3 충돌 판정
 - 타일 충돌 : 이동 후 타일/바닥과 겹치면 위치 보정  
@@ -73,15 +78,16 @@ Move();                                     // 위치 변경
 - delta time(fDT) 기반 이동량 적용
 
 #### 3.4 예제 코드
-CRigidBody* pBody = player->GetRigidBody();
-pBody->AddForce(Vec2(0.f, 980.f)); // 중력 적용
-pBody->finalupdate();              // 위치 갱신 및 충돌 처리
 
-Vec2 playerVel = pBody->GetVelocity();
-if (!playerVel.IsZero())
-{
-    // 이동 처리, 애니메이션 변경 등
-}
+    CRigidBody* pBody = player->GetRigidBody();
+    pBody->AddForce(Vec2(0.f, 980.f)); // 중력 적용
+    pBody->finalupdate();              // 위치 갱신 및 충돌 처리
+
+    Vec2 playerVel = pBody->GetVelocity();
+    if (!playerVel.IsZero())
+    {
+        // 이동 처리, 애니메이션 변경 등
+    }
 
 ---
 
