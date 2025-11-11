@@ -10,12 +10,12 @@
 ## 주요 기능
 
 ### 1. 객체 및 그룹 관리
-- **CObject**를 기반으로 모든 게임 객체 생성
-- **GROUP_TYPE**으로 객체 그룹 구분
+- CObject를 기반으로 모든 게임 객체 생성
+- GROUP_TYPE으로 객체 그룹 구분
   - DEFAULT, TILE, GROUND, MONSTER, PLAYER, PROJ_PLAYER, PROJ_MONSTER, UI 등
-- 객체 생성/삭제 시 이벤트(`CEventMgr`) 발생
+- 객체 생성/삭제 시 이벤트(CEventMgr) 발생
 
-### 1.1 오브젝트 배치 예제:
+#### 1.1 오브젝트 배치 예시:
  - 씬 생성시에는 DirectSpawn 가능
 
         CObject* pObj = new CPlayer;
@@ -35,7 +35,7 @@
       AddObject(pMon, GROUP_TYPE::MONSTER);
       CreateObject(pMon, GROUP_TYPE::MONSTER);
 
-### 1.2 오브젝트 삭제 예제
+#### 1.2 오브젝트 삭제
 
       void CMonster::OnCollisionEnter(CCollider* _pOther)
       {
@@ -50,6 +50,16 @@
 	        	}
         	}
         }
+
+	void DeleteObject(CObject* _pObj)
+	{
+		tEvent evn = {};
+		evn.eEven = EVENT_TYPE::DELETE_OBJECT;
+		evn.lParam = (DWORD_PTR)_pObj;
+	
+		CEventMgr::GetInst()->AddEvent(evn);
+	}
+		
 ---
 
 ### 2. 물리 충돌 처리 (CRigidBody)
@@ -73,12 +83,92 @@
     Move();                                     // 위치 변경
 
 #### 2.3 충돌 판정
-- 타일 충돌 : 이동 후 타일/바닥과 겹치면 위치 보정
-- 중력 및 바닥 감지 : y축 속도 조절, 땅 위에 정지  
-- 천장/벽 충돌 : 충돌 방향 속도 제거  
+- 타일 충돌 시 위치 보정
+- 중력 및 바닥 감지 (착지 상태)
+- 천장/벽 충돌 시 속도 제거
 - delta time(fDT) 기반 이동량 적용
 
-#### 2.4 타일 충돌
+#### 2.4 중력 적용 여부는 CGravity의 finalupdate 함수에서 결정
+
+    if (true == m_bGround)
+    {
+   		// 땅에 있을 때는 중력 제거
+    	m_pOwner->GetRigidBody()->SetAccelAlpha(Vec2(0.f, 0.f));
+	}
+    else
+    {
+        // 공중에 있을 때만 중력 적용
+        m_pOwner->GetRigidBody()->SetAccelAlpha(Vec2(0.f, m_fGravity));
+    }
+
+#### 2.5 중력 실제 적용은 CRigidBody의 finalupdate 함수에서 적용
+
+	// 힘의 크기
+	float fForce = m_vForce.Length();
+	Vec2 vForceDir = m_vForce;
+	float m_fAccel = 0.f;
+	
+	if (0.f != fForce)
+	{
+		// 힘의 방향
+		vForceDir.Normalize();
+
+		// 가속도의 크기
+		m_fAccel = fForce / m_fMass;
+		
+
+		// 가속도
+		m_vAccel = m_vForce * m_fAccel;
+		//m_vAccel = m_vForce * fForce / m_fMass;
+	}
+
+	// 중력 가속도
+	m_vAccel += m_vAccelA;
+
+	// 속도
+	m_vVelocity += m_vAccel * fDT;
+
+	// 마찰력에 의한 반대방향으로의 가속도 적용
+	if (!m_vVelocity.IsZero())
+	{
+		Vec2 vFircDir = -m_vVelocity;
+		vFircDir.Normalize();
+
+		Vec2 vFriction = vFircDir * m_fFricCoeff * fDT;
+		float fVelLength = m_vVelocity.Length();
+
+		if (fVelLength <= vFriction.Length())
+		{
+			// 마찰 가속도가 본래 속도보다 더 큰 경우 역방향으로 밀려나지 않기 위해 0으로 설정
+			m_vVelocity = Vec2(0.f, 0.f);
+		}
+		else
+		{
+			m_vVelocity += vFriction;
+		}
+	}
+
+	// 속도 제한 검사
+	if (abs(m_vMaxVelocity.x) < abs(m_vVelocity.x) && m_vVelocity.x != 0.f)
+	{
+		m_vVelocity.x = (m_vVelocity.x / abs(m_vVelocity.x)) * abs(m_vMaxVelocity.x);
+	}	
+	
+	if (abs(m_vMaxVelocity.y) < abs(m_vVelocity.y) && m_vVelocity.x != 0.f)
+	{
+		m_vVelocity.y = (m_vVelocity.y / abs(m_vVelocity.y)) * abs(m_vMaxVelocity.y);
+	}
+
+	// 속도에 따른 오브젝트 이동
+	Move();
+
+	// 힘 초기화
+	m_vForce = Vec2(0.f, 0.f);
+	// 가속도 초기화
+	m_vAccel = Vec2(0.f, 0.f);
+	m_vAccelA = Vec2(0.f,0.f);
+
+#### 2.5 타일 충돌
 - 콜리전 매니저에서 충돌체크 확인
 	
 		void CCollisionMgr::CheckGroup(GROUP_TYPE _eLeft, GROUP_TYPE _eRight)
@@ -110,143 +200,82 @@
    - CGround의 OnCollisionEnter
   		- 이전 틱에 충돌을 하지 않았던 경우 호출
      
-		  		void CGround::OnCollisionEnter(CCollider* _pOther)
+				// 다른 충돌체와 충돌했을때
+			 	CObject* pOtherObj = _pOther->GetObj();
+				if (pOtherObj->GetType() == GROUP_TYPE::PLAYER)
 				{
-					// 다른 충돌체와 충돌했을때
-				 	CObject* pOtherObj = _pOther->GetObj();
-					if (pOtherObj->GetType() == GROUP_TYPE::PLAYER)
-					{
-						//// 땅에 닿았음을 알림
-						//pOtherObj->GetGravity()->SetGround(true);
-				
-						// CPlayer로 변환
-						CPlayer* pPlayer = dynamic_cast<CPlayer*>(pOtherObj);
-						// pPlayer가 nullptr이 아닌 경우에만(충돌한 _pOther가 Player인 경우에만) AddTarget 호출
-						if (pPlayer != nullptr)
-						{
-							pPlayer->AddTarget(this);
-						}
+					//// 땅에 닿았음을 알림
+					//pOtherObj->GetGravity()->SetGround(true);
+			
+					// CPlayer로 변환
+					CPlayer* pPlayer = dynamic_cast<CPlayer*>(pOtherObj);
+					// pPlayer가 nullptr이 아닌 경우에만(충돌한 _pOther가 Player인 경우에만) AddTarget 호출
+					if (pPlayer != nullptr)
+				{
+						pPlayer->AddTarget(this);
 					}
 				}
 
    - CGround의 OnCollision
+     	- 지속 충돌 시 이동 보정
 
-	 		void CGround::OnCollision(CCollider* _pOther)
-			{
-				CObject* pOtherObj = _pOther->GetObj();
-				// CPlayer로 변환
-				CPlayer* pPlayer = dynamic_cast<CPlayer*>(pOtherObj);
-			
-				// dynamic_cast를 이용해 플레이어가 맞는지 검사
-				if (pPlayer != nullptr)
+				// x축, y축 오버랩(겹침) 계산
+				float overlapX = (halfPlayerX + halfPlatformX) - fabs(deltaX);
+				float overlapY = (halfPlayerY + halfPlatformY) - fabs(deltaY);
+								Vec2 pVec = pPlayer->GetRigidBody()->GetVelocity();
+								// 오버랩이 양수이면 실제 충돌 상태임
+				if (overlapX > 0.f && overlapY > 0.f)
 				{
-					// 플레이어의 위치와 크기 가져오기
-					Vec2 vPlayerPos = pPlayer->GetPos(); // 플레이어의 현재 위치
-					Vec2 vPlayerScale = pPlayer->GetScale(); // 플레이어의 콜라이더 크기
-			
-					// 플랫폼의 위치와 크기 가져오기
-					Vec2 vPlatformPos = GetCollider()->GetFinalPos(); // 플랫폼 위치
-					Vec2 vPlatformScale = GetCollider()->GetScale(); // 플랫폼 콜라이더 크기
-			
-					// 플레이어의 경계선
-					float fPlayerTop = vPlayerPos.y - vPlayerScale.y / 2;
-					float fPlayerBottom = vPlayerPos.y + vPlayerScale.y / 2;
-					float fPlayerLeft = vPlayerPos.x - vPlayerScale.x / 2;
-					float fPlayerRight = vPlayerPos.x + vPlayerScale.x / 2;
-			
-					// 플랫폼의 경계선
-					float fPlatformTop = vPlatformPos.y - vPlatformScale.y / 2;
-					float fPlatformBottom = vPlatformPos.y + vPlatformScale.y / 2;
-					float fPlatformLeft = vPlatformPos.x - vPlatformScale.x / 2;
-					float fPlatformRight = vPlatformPos.x + vPlatformScale.x / 2;
-			
-					// 플레이어와 플랫폼 크기의 절반
-					float halfPlayerX = vPlayerScale.x * 0.5f;
-					float halfPlayerY = vPlayerScale.y * 0.5f;
-					float halfPlatformX = vPlatformScale.x * 0.5f;
-					float halfPlatformY = vPlatformScale.y * 0.5f;
-			
-					// 중심 좌표 차이 계산
-					float deltaX = vPlayerPos.x - vPlatformPos.x;
-					float deltaY = vPlayerPos.y - vPlatformPos.y;
-			
-					// x축, y축 오버랩(겹침) 계산
-					float overlapX = (halfPlayerX + halfPlatformX) - fabs(deltaX);
-					float overlapY = (halfPlayerY + halfPlatformY) - fabs(deltaY);
-			
-					Vec2 pVec = pPlayer->GetRigidBody()->GetVelocity();
-			
-					// 오버랩이 양수이면 실제 충돌 상태임
-					if (overlapX > 0.f && overlapY > 0.f)
+					// 어느 축의 충돌이 더 약한지(겹침 정도가 작은지) 판단
+					if (overlapX < overlapY)
 					{
-						// 어느 축의 충돌이 더 약한지(겹침 정도가 작은지) 판단
-						if (overlapX < overlapY)
+						// [좌우(수평) 충돌 처리]
+						if (deltaX > 0.f)
 						{
-							// [좌우(수평) 충돌 처리]
-							if (deltaX > 0.f)
-							{
-								// 플레이어가 플랫폼의 오른쪽에 위치한 경우:
-								// 겹침을 해소하기 위해 오른쪽으로 이동
-								pPlayer->SetPos(Vec2(vPlayerPos.x + overlapX, vPlayerPos.y));
-							}
-							else
-							{
-								// 플레이어가 플랫폼의 왼쪽에 위치한 경우:
-								// 겹침을 해소하기 위해 왼쪽으로 이동
-								pPlayer->SetPos(Vec2(vPlayerPos.x - overlapX, vPlayerPos.y));
-							}
-							// 수평 충돌 시 x축 속도를 0으로 설정 (y축 속도는 그대로 유지)
-							Vec2 curVelocity = pPlayer->GetRigidBody()->GetVelocity();
-							pPlayer->GetRigidBody()->SetVelocity(Vec2(0.f, curVelocity.y));
-							pPlayer->GetGravity()->SetGround(false);
+							// 플레이어가 플랫폼의 오른쪽에 위치한 경우:
+							// 겹침을 해소하기 위해 오른쪽으로 이동
+							pPlayer->SetPos(Vec2(vPlayerPos.x + overlapX, vPlayerPos.y));
 						}
 						else
 						{
-							// [상하(수직) 충돌 처리]
-							// **좌표 체계 주의:** 여기서는 y가 아래로 커진다고 가정합니다.
-							if (deltaY < 0.f)
-							{
-								// 플레이어의 중심이 플랫폼보다 위에 있으면,
-								// 즉, 플레이어가 플랫폼 위로 내려와 착지한 경우:
-								// 플레이어의 바닥이 플랫폼의 위쪽 경계와 맞닿도록 위치 보정
-								float newY = (vPlatformPos.y - halfPlatformY) - halfPlayerY;
-								pPlayer->SetPos(Vec2(vPlayerPos.x, newY));
-								pPlayer->GetGravity()->SetGround(true);
-								pPlayer->ResetJump();
-								pPlayer->SetJump(false);
-							}
-							else
-							{
-								// 플레이어의 중심이 플랫폼보다 아래에 있으면,
-								// 즉, 플레이어가 플랫폼 밑(천장)에 부딪힌 경우:
-								// 플레이어의 위쪽이 플랫폼의 아래쪽 경계와 맞닿도록 위치 보정
-								float newY = (vPlatformPos.y + halfPlatformY) + halfPlayerY;
-								pPlayer->SetPos(Vec2(vPlayerPos.x, newY));
-								// 천장 충돌 시 y축 속도를 강제로 조정하여 상승을 막음
-								Vec2 curVelocity = pPlayer->GetRigidBody()->GetVelocity();
-								pPlayer->GetRigidBody()->SetVelocity(Vec2(curVelocity.x, 100.f));
-								pPlayer->GetGravity()->SetGround(false);
-							}
+							// 플레이어가 플랫폼의 왼쪽에 위치한 경우:
+							// 겹침을 해소하기 위해 왼쪽으로 이동
+							pPlayer->SetPos(Vec2(vPlayerPos.x - overlapX, vPlayerPos.y));
 						}
-					}	
+						// 수평 충돌 시 x축 속도를 0으로 설정 (y축 속도는 그대로 유지)
+						Vec2 curVelocity = pPlayer->GetRigidBody()->GetVelocity();
+						pPlayer->GetRigidBody()->SetVelocity(Vec2(0.f, curVelocity.y));
+						pPlayer->GetGravity()->SetGround(false);
+					}
+					else
+					{
+						// [상하(수직) 충돌 처리]
+						if (deltaY < 0.f)
+						{
+							// 플레이어의 중심이 플랫폼보다 위에 있으면,
+							// 즉, 플레이어가 플랫폼 위로 내려와 착지한 경우:
+							// 플레이어의 바닥이 플랫폼의 위쪽 경계와 맞닿도록 위치 보정
+							float newY = (vPlatformPos.y - halfPlatformY) - halfPlayerY;
+							pPlayer->SetPos(Vec2(vPlayerPos.x, newY));
+							pPlayer->GetGravity()->SetGround(true);
+							pPlayer->ResetJump();
+							pPlayer->SetJump(false);
+						}
+						else
+						{
+							// 플레이어의 중심이 플랫폼보다 아래에 있으면,
+							// 즉, 플레이어가 플랫폼 밑(천장)에 부딪힌 경우:
+							// 플레이어의 위쪽이 플랫폼의 아래쪽 경계와 맞닿도록 위치 보정
+							float newY = (vPlatformPos.y + halfPlatformY) + halfPlayerY;
+							pPlayer->SetPos(Vec2(vPlayerPos.x, newY));
+							// 천장 충돌 시 y축 속도를 강제로 조정하여 상승을 막음
+							Vec2 curVelocity = pPlayer->GetRigidBody()->GetVelocity();
+							pPlayer->GetRigidBody()->SetVelocity(Vec2(curVelocity.x, 100.f));
+							pPlayer->GetGravity()->SetGround(false);
+						}
+					}
 				}
-			}
-  
-### 2.5 중력
 
-    void CGravity::finalupdate()
-    {
-        if (true == m_bGround)
-        {
-            // 땅에 있을 때는 중력 제거
-            m_pOwner->GetRigidBody()->SetAccelAlpha(Vec2(0.f, 0.f));
-        }
-        else
-        {
-            // 공중에 있을 때만 중력 적용
-            m_pOwner->GetRigidBody()->SetAccelAlpha(Vec2(0.f, m_fGravity));
-        }
-    }
     
 ---
 
@@ -256,16 +285,13 @@
   - IDLE, PATROL, TRACE
 - 상태 전환 시 이벤트 발생 및 Enter/Exit 함수 호출
 
-예제:
+예시:
 
-    AI* pAI = new AI();
-    pAI->AddState(new CIdleState());
-    pAI->AddState(new CTraceState());
-    pAI->SetCurState(MON_STATE::IDLE);
+	AI* pAI = new AI;
+	pAI->AddState(new CIdleState);
+	pAI->AddState(new CTraceState);
 
-// 상태 변경
-
-    pAI->ChangeState(MON_STATE::TRACE);
+	CMonster* pMonsterObj = nullptr;
 
 ---
 
@@ -273,9 +299,11 @@
 - CEventMgr를 통해 객체 생성, 삭제, 씬 변경, AI 상태 변경 이벤트 발생
 - 이벤트를 통해 시스템 간 결합도를 낮추고 독립적으로 처리 가능
 
-예제:
+예시:
 
-    ChangeScene(SCENE_TYPE::STAGE_01);
-    ChageAIState(pAI, MON_STATE::TRACE);
+	if (KEY_TAP(KEY::P))
+	{
+		ChangeScene(SCENE_TYPE::TOOL);
+	}
 
 ---
