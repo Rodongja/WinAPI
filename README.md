@@ -1,4 +1,4 @@
-# 2D 게임 엔진 샘플 프로젝트
+# 2D 게임 엔진 구현
 
 ## 개요
 본 프로젝트는 C++과 WinAPI를 기반으로 한 2D 게임 엔진입니다.  
@@ -18,10 +18,10 @@
 ### 1.1 오브젝트 배치 예제:
  - 씬 생성시에는 DirectSpawn 가능
 
-       CObject* pObj = new CPlayer;
-       pObj->SetName(L"Player");
-	     pObj->SetPos(Vec2(640.f,384.f));
-	     pObj->SetScale(Vec2(20.f,40.f));
+        CObject* pObj = new CPlayer;
+        pObj->SetName(L"Player");
+   		pObj->SetPos(Vec2(640.f,384.f));
+	    pObj->SetScale(Vec2(20.f,40.f));
 
        CObject* pGround = new CGround;
        pGround->SetName(L"Ground");
@@ -79,9 +79,61 @@
 - delta time(fDT) 기반 이동량 적용
 
 ### 2.4 타일 충돌
+- 콜리전 매니저에서 충돌 체크
+
+		void CCollisionMgr::CheckGroup(GROUP_TYPE _eLeft, GROUP_TYPE _eRight)
+		{
+			// 더 작은 값의 그룹 타입을 행으로
+			// 큰 값을 열(비트)로 사용
+		
+			UINT iRow = (UINT)_eLeft;
+			UINT iCol = (UINT)_eRight;
+		
+			if (iRow > iCol)
+			{
+				iRow = (UINT)_eRight;
+				iCol = (UINT)_eLeft;
+			}
+		
+			if (m_arrCheck[iRow] & (1 << iCol)) // 비트가 1이면
+			{
+				// 비트를 0로 설정
+				m_arrCheck[iRow] &= ~(1 << iCol);
+			}
+			else // 비트가 0이면
+			{
+				// 비트를 1로 설정
+				m_arrCheck[iRow] |= (1 << iCol);
+			}
+		}
+
+- CGround에서 Player와의 충돌 확인
+
+		void CGround::OnCollisionEnter(CCollider* _pOther)
+		{
+			// 다른 충돌체와 충돌했을때
+		 	CObject* pOtherObj = _pOther->GetObj();
+			if (pOtherObj->GetType() == GROUP_TYPE::PLAYER)
+			{
+				//// 땅에 닿았음을 알림
+				//pOtherObj->GetGravity()->SetGround(true);
+		
+				// CPlayer로 변환
+				CPlayer* pPlayer = dynamic_cast<CPlayer*>(pOtherObj);
+				// pPlayer가 nullptr이 아닌 경우에만(충돌한 _pOther가 Player인 경우에만) AddTarget 호출
+				if (pPlayer != nullptr)
+				{
+					pPlayer->AddTarget(this);
+				}
+			}
+		}
+
+- Player에서 이동 보정
+
+  		
 
   
-### 2.5 중력 코드
+### 2.5 중력
 
     void CGravity::finalupdate()
     {
