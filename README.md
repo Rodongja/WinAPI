@@ -123,12 +123,22 @@
 				// pPlayer가 nullptr이 아닌 경우에만(충돌한 _pOther가 Player인 경우에만) AddTarget 호출
 				if (pPlayer != nullptr)
 				{
+  					// 플레이어가 Ground를 타겟목록에 추가
 					pPlayer->AddTarget(this);
 				}
 			}
 		}
 
 - Player에서 이동 보정
+	- Ground가 아닌 Player에서 이동 보정을 하는 이유
+   		- 모든 Ground가 Player와 충돌했는지 매 틱 검사하면 성능이 떨어짐
+        - Player가 충돌한 Ground를 기억하면 최적화 가능
+        - Ground 말고도 다른 오브젝트와의 충돌이나 물리효과도 Player에서 관리 가능
+	- 중복방지와 빠른 조회/삭제가 가능한 unordered_set을 사용하여 플레이어와 충돌한 오브젝트 저장
+
+			public:
+			    unordered_set<CObject*> m_hTarget;
+
 
   		
 
