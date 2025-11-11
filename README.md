@@ -10,10 +10,10 @@
 ## 주요 기능
 
 ### 1. 객체 및 그룹 관리
-- CObject를 기반으로 모든 게임 객체 생성
-- 객체 그룹 구분 (GROUP_TYPE)
+- **CObject**를 기반으로 모든 게임 객체 생성
+- **GROUP_TYPE**으로 객체 그룹 구분
   - DEFAULT, TILE, GROUND, MONSTER, PLAYER, PROJ_PLAYER, PROJ_MONSTER, UI 등
-- 객체 생성/삭제 시 이벤트(CEventMgr) 발생
+- 객체 생성/삭제 시 이벤트(`CEventMgr`) 발생
 
 ### 1.1 오브젝트 배치 예제:
  - 씬 생성시에는 DirectSpawn 가능
@@ -79,33 +79,33 @@
 - delta time(fDT) 기반 이동량 적용
 
 #### 2.4 타일 충돌
-	- 콜리전 매니저에서 충돌체크 확인
+- 콜리전 매니저에서 충돌체크 확인
 	
-			void CCollisionMgr::CheckGroup(GROUP_TYPE _eLeft, GROUP_TYPE _eRight)
+		void CCollisionMgr::CheckGroup(GROUP_TYPE _eLeft, GROUP_TYPE _eRight)
+		{
+			// 더 작은 값의 그룹 타입을 행으로
+			// 큰 값을 열(비트)로 사용
+	
+			UINT iRow = (UINT)_eLeft;
+			UINT iCol = (UINT)_eRight;
+		
+			if (iRow > iCol)
 			{
-				// 더 작은 값의 그룹 타입을 행으로
-				// 큰 값을 열(비트)로 사용
-			
-				UINT iRow = (UINT)_eLeft;
-				UINT iCol = (UINT)_eRight;
-			
-				if (iRow > iCol)
-				{
-					iRow = (UINT)_eRight;
-					iCol = (UINT)_eLeft;
-				}
-			
-				if (m_arrCheck[iRow] & (1 << iCol)) // 비트가 1이면
-				{
-					// 비트를 0로 설정
-					m_arrCheck[iRow] &= ~(1 << iCol);
-				}
-				else // 비트가 0이면
-				{
-					// 비트를 1로 설정
-					m_arrCheck[iRow] |= (1 << iCol);
-				}
+				iRow = (UINT)_eRight;
+				iCol = (UINT)_eLeft;
 			}
+		
+			if (m_arrCheck[iRow] & (1 << iCol)) // 비트가 1이면
+			{
+				// 비트를 0로 설정
+				m_arrCheck[iRow] &= ~(1 << iCol);
+			}
+			else // 비트가 0이면
+			{
+				// 비트를 1로 설정
+				m_arrCheck[iRow] |= (1 << iCol);
+			}
+		}
 
    - CGround의 OnCollisionEnter
   		- 이전 틱에 충돌을 하지 않았던 경우 호출
