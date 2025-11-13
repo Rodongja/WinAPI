@@ -232,13 +232,13 @@
 						// [좌우(수평) 충돌 처리]
 						if (deltaX > 0.f)
 						{
-							// 플레이어가 플랫폼의 오른쪽에 위치한 경우:
+							// 플레이어가 플랫폼의 오른쪽에 위치한 경우
 							// 겹침을 해소하기 위해 오른쪽으로 이동
 							pPlayer->SetPos(Vec2(vPlayerPos.x + overlapX, vPlayerPos.y));
 						}
 						else
 						{
-							// 플레이어가 플랫폼의 왼쪽에 위치한 경우:
+							// 플레이어가 플랫폼의 왼쪽에 위치한 경우
 							// 겹침을 해소하기 위해 왼쪽으로 이동
 							pPlayer->SetPos(Vec2(vPlayerPos.x - overlapX, vPlayerPos.y));
 						}
@@ -253,7 +253,7 @@
 						if (deltaY < 0.f)
 						{
 							// 플레이어의 중심이 플랫폼보다 위에 있으면,
-							// 즉, 플레이어가 플랫폼 위로 내려와 착지한 경우:
+							// 즉, 플레이어가 플랫폼 위로 내려와 착지한 경우
 							// 플레이어의 바닥이 플랫폼의 위쪽 경계와 맞닿도록 위치 보정
 							float newY = (vPlatformPos.y - halfPlatformY) - halfPlayerY;
 							pPlayer->SetPos(Vec2(vPlayerPos.x, newY));
@@ -264,7 +264,7 @@
 						else
 						{
 							// 플레이어의 중심이 플랫폼보다 아래에 있으면,
-							// 즉, 플레이어가 플랫폼 밑(천장)에 부딪힌 경우:
+							// 즉, 플레이어가 플랫폼 밑(천장)에 부딪힌 경우
 							// 플레이어의 위쪽이 플랫폼의 아래쪽 경계와 맞닿도록 위치 보정
 							float newY = (vPlatformPos.y + halfPlatformY) + halfPlayerY;
 							pPlayer->SetPos(Vec2(vPlayerPos.x, newY));
