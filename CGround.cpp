@@ -98,14 +98,12 @@ void CGround::OnCollision(CCollider* _pOther)
 				// [좌우(수평) 충돌 처리]
 				if (deltaX > 0.f)
 				{
-					// 플레이어가 플랫폼의 오른쪽에 위치한 경우:
-					// 겹침을 해소하기 위해 오른쪽으로 이동
+					// 플레이어가 플랫폼의 오른쪽에 위치한 경우 겹침을 해소하기 위해 오른쪽으로 이동
 					pPlayer->SetPos(Vec2(vPlayerPos.x + overlapX, vPlayerPos.y));
 				}
 				else
 				{
-					// 플레이어가 플랫폼의 왼쪽에 위치한 경우:
-					// 겹침을 해소하기 위해 왼쪽으로 이동
+					// 플레이어가 플랫폼의 왼쪽에 위치한 경우 겹침을 해소하기 위해 왼쪽으로 이동
 					pPlayer->SetPos(Vec2(vPlayerPos.x - overlapX, vPlayerPos.y));
 				}
 				// 수평 충돌 시 x축 속도를 0으로 설정 (y축 속도는 그대로 유지)
@@ -116,11 +114,9 @@ void CGround::OnCollision(CCollider* _pOther)
 			else
 			{
 				// [상하(수직) 충돌 처리]
-				// **좌표 체계 주의:** 여기서는 y가 아래로 커진다고 가정합니다.
 				if (deltaY < 0.f)
 				{
-					// 플레이어의 중심이 플랫폼보다 위에 있으면,
-					// 즉, 플레이어가 플랫폼 위로 내려와 착지한 경우:
+					// 플레이어가 플랫폼 위로 내려와 착지한 경우
 					// 플레이어의 바닥이 플랫폼의 위쪽 경계와 맞닿도록 위치 보정
 					float newY = (vPlatformPos.y - halfPlatformY) - halfPlayerY;
 					pPlayer->SetPos(Vec2(vPlayerPos.x, newY));
@@ -130,14 +126,13 @@ void CGround::OnCollision(CCollider* _pOther)
 				}
 				else
 				{
-					// 플레이어의 중심이 플랫폼보다 아래에 있으면,
-					// 즉, 플레이어가 플랫폼 밑(천장)에 부딪힌 경우:
+					// 플레이어가 플랫폼 밑(천장)에 부딪힌 경우
 					// 플레이어의 위쪽이 플랫폼의 아래쪽 경계와 맞닿도록 위치 보정
 					float newY = (vPlatformPos.y + halfPlatformY) + halfPlayerY;
 					pPlayer->SetPos(Vec2(vPlayerPos.x, newY));
 					// 천장 충돌 시 y축 속도를 강제로 조정하여 상승을 막음
 					Vec2 curVelocity = pPlayer->GetRigidBody()->GetVelocity();
-					pPlayer->GetRigidBody()->SetVelocity(Vec2(curVelocity.x, 100.f));
+					pPlayer->GetRigidBody()->SetVelocity(Vec2(curVelocity.x, 0.f));
 					pPlayer->GetGravity()->SetGround(false);
 				}
 			}
